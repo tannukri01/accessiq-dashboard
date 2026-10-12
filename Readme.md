@@ -64,4 +64,4 @@ No frameworks. Clean and lightweight.
 
 1. Clone the repository
 ```bash
-git clone https://github.com/YOUR_USERNAME/accessiq-dashboard.git
+git clone https://https://github.com/tannukri01/accessiq-dashboard.git
