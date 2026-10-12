@@ -10,7 +10,7 @@
 
 **Interactive accessibility audit dashboard with real-time scoring, violation tracking & remediation guidance**
 
-[Live Demo](#) · [Report Issue](#) · [Features](#-features)
+[Live Demo](https://accessiq-dashboard.vercel.app/) · [Report Issue](#) · [Features](#-features)
 
 </div>
 
