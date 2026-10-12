@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AccessIQ — Accessibility Audit Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,sans-serif;background:#0f1117;color:#e8eaef;line-height:1.5}
+    .app{display:flex;min-height:100vh}
+    .sidebar{width:220px;background:#12151e;border-right:1px solid rgba(255,255,255,.06);padding:24px 14px;position:sticky;top:0;height:100vh}
+    .logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.2rem;margin-bottom:28px}
+    .logo-icon{width:32px;height:32px;background:linear-gradient(135deg,#3ecf8e,#2bb673);border-radius:9px;display:grid;place-items:center;color:#0a1f14;font-weight:700}
+    .nav-label{font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;padding:12px 12px 6px}
+    .nav-item{display:block;padding:10px 12px;border-radius:10px;color:#9ba3b5;text-decoration:none;font-size:.9rem;margin-bottom:2px;cursor:pointer}
+    .nav-item:hover,.nav-item.active{background:rgba(62,207,142,.15);color:#3ecf8e}
+    .main{flex:1;padding:28px 32px;overflow-y:auto}
+    .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+    .topbar h1{font-size:1.5rem;font-weight:600}
+    .tabs{display:flex;gap:4px;background:rgba(255,255,255,.04);padding:4px;border-radius:10px;margin-top:10px}
+    .tab{border:none;background:transparent;color:#9ba3b5;padding:7px 16px;border-radius:8px;cursor:pointer;font-size:.85rem}
+    .tab.active{background:rgba(255,255,255,.1);color:#fff}
+    .user-chip{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);padding:6px 14px 6px 6px;border-radius:999px;font-size:.9rem}
+    .avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#5b9dff,#3ecf8e);display:grid;place-items:center;font-size:.75rem;font-weight:600;color:#0a1220}
+    .hero{background:linear-gradient(135deg,#163d3a,#0f2a2c,#132a3a);border-radius:20px;padding:24px 28px;display:flex;justify-content:space-between;align-items:center;gap:24px;margin-bottom:24px;border:1px solid rgba(62,207,142,.12)}
+    .hero-badge{display:inline-flex;gap:6px;background:rgba(62,207,142,.15);color:#3ecf8e;font-size:.8rem;font-weight:600;padding:5px 12px;border-radius:999px;margin-bottom:10px}
+    .hero h2{font-size:1.5rem;margin-bottom:8px;color:#f0fdf4}
+    .hero p{color:#b8d4c8;font-size:.95rem;max-width:480px}
+    .hero-stats{display:flex;gap:14px}
+    .stat-pill{background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 20px;text-align:center;min-width:100px}
+    .stat-pill.highlight{background:rgba(62,207,142,.12);border-color:rgba(62,207,142,.25)}
+    .stat-number{display:block;font-size:1.6rem;font-weight:700;color:#f0fdf4}
+    .stat-pill.highlight .stat-number{color:#3ecf8e}
+    .stat-label{font-size:.75rem;color:#8fb9a8}
+    .grid{display:grid;grid-template-columns:280px 1fr;gap:18px;margin-bottom:18px}
+    .card{background:#171a23;border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:20px}
+    .card h3{font-size:.95rem;font-weight:600;margin-bottom:14px}
+    .ring-box{position:relative;width:140px;height:140px;margin:8px auto}
+    .ring-box svg{transform:rotate(-90deg)}
+    .ring-bg{fill:none;stroke:rgba(255,255,255,.06);stroke-width:10}
+    .ring-progress{fill:none;stroke:#3ecf8e;stroke-width:10;stroke-linecap:round;stroke-dasharray:408;stroke-dashoffset:408;transition:stroke-dashoffset 1s}
+    .ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+    .ring-value{font-size:2.2rem;font-weight:700}
+    .ring-label{font-size:.8rem;color:#3ecf8e;font-weight:600}
+    .score-note{text-align:center;font-size:.82rem;color:#9ba3b5;margin-top:8px}
+    .chart-area{height:170px}
+    .legend{display:flex;gap:14px;justify-content:center;margin-top:8px;font-size:.8rem;color:#9ba3b5}
+    .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px}
+    .issue-row{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;background:rgba(255,255,255,.03);margin-bottom:8px}
+    .issue-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:.95rem}
+    .critical .issue-icon{background:rgba(255,107,107,.15)}
+    .serious .issue-icon{background:rgba(255,179,71,.15)}
+    .moderate .issue-icon{background:rgba(91,157,255,.15)}
+    .best .issue-icon{background:rgba(167,139,250,.15)}
+    .issue-info{flex:1}
+    .issue-name{font-size:.9rem;font-weight:550}
+    .issue-desc{font-size:.75rem;color:#6b7280}
+    .issue-count{font-size:1.2rem;font-weight:700}
+    .scan-actions{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap}
+    .btn-primary{background:linear-gradient(135deg,#3ecf8e,#2bb673);color:#0a1f14;border:none;padding:11px 18px;border-radius:11px;font-weight:600;cursor:pointer;font-size:.9rem}
+    .btn-primary:hover{opacity:.9}
+    .btn-primary:disabled{opacity:.6;cursor:not-allowed}
+    .btn-secondary{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#e8eaef;padding:11px 16px;border-radius:11px;cursor:pointer;font-size:.88rem}
+    .btn-secondary:hover{border-color:#3ecf8e;color:#3ecf8e}
+    .btn-secondary:disabled{opacity:.5;cursor:not-allowed}
+    .select{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#fff;padding:10px 12px;border-radius:11px}
+    .comparison{background:rgba(255,255,255,.03);border-radius:12px;padding:14px;margin-bottom:14px}
+    .compare-row{display:flex;align-items:center;gap:12px;margin-top:8px}
+    .compare-box{background:rgba(255,255,255,.04);border-radius:10px;padding:10px 14px;text-align:center;min-width:85px}
+    .compare-box.current{background:rgba(62,207,142,.1);border:1px solid rgba(62,207,142,.2)}
+    .compare-label{font-size:.7rem;color:#6b7280}
+    .compare-value{font-size:1.25rem;font-weight:700}
+    .compare-delta{background:rgba(62,207,142,.15);color:#3ecf8e;padding:4px 10px;border-radius:8px;font-weight:600;font-size:.9rem}
+    .status-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(62,207,142,.15);color:#3ecf8e;padding:5px 12px;border-radius:999px;font-size:.8rem;font-weight:550}
+    .pulse{width:7px;height:7px;background:#3ecf8e;border-radius:50%;animation:pulse 1.5s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+    .system-status{display:flex;align-items:center;gap:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06);font-size:.85rem}
+    .status-dot{width:10px;height:10px;background:#3ecf8e;border-radius:50%}
+    /* Violations */
+    .violations-card{grid-column:1/-1}
+    .violation{background:#0d1117;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:16px;margin-bottom:12px}
+    .v-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+    .v-title{font-weight:600;font-size:.95rem}
+    .badge{font-size:.72rem;font-weight:600;padding:3px 10px;border-radius:999px;text-transform:capitalize}
+    .badge.critical{background:rgba(248,81,73,.15);color:#f85149}
+    .badge.serious{background:rgba(210,153,34,.15);color:#d29922}
+    .badge.moderate{background:rgba(88,166,255,.15);color:#58a6ff}
+    .badge.minor{background:rgba(63,185,80,.15);color:#3fb950}
+    .v-desc{font-size:.85rem;color:#9ba3b5;margin-bottom:6px}
+    .v-meta{font-size:.8rem;color:#6b7280}
+    .remediation{background:rgba(62,207,142,.08);border-left:3px solid #3ecf8e;padding:10px 14px;margin-top:10px;font-size:.85rem;border-radius:0 8px 8px 0}
+    .empty{text-align:center;color:#6b7280;padding:30px;font-size:.95rem}
+    /* Notes */
+    .notes-card{grid-column:1/-1}
+    textarea{width:100%;background:#0d1117;border:1px solid rgba(255,255,255,.1);color:#e8eaef;padding:14px;border-radius:10px;font-size:.9rem;min-height:110px;resize:vertical;font-family:inherit}
+    textarea:focus{outline:none;border-color:#3ecf8e}
+    .toast{position:fixed;bottom:28px;right:28px;background:#1c2030;color:#fff;padding:14px 22px;border-radius:12px;border:1px solid #3ecf8e;z-index:999;opacity:0;transform:translateY(20px);transition:.3s;font-size:.9rem}
+    .toast.show{opacity:1;transform:translateY(0)}
+    @media(max-width:1000px){.grid{grid-template-columns:1fr}.sidebar{display:none}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo"><div class="logo-icon">A</div> AccessIQ</div>
+    <p class="nav-label">Main Menu</p>
+    <a class="nav-item active" onclick="nav(this,'Dashboard')">Dashboard</a>
+    <a class="nav-item" onclick="nav(this,'Services')">Services</a>
+    <a class="nav-item" onclick="nav(this,'Reports')">Reports</a>
+    <p class="nav-label">Analytics</p>
+    <a class="nav-item" onclick="nav(this,'Analytics')">Analytics</a>
+    <a class="nav-item" onclick="nav(this,'DevSteps')">DevSteps</a>
+    <a class="nav-item" style="margin-top:30px" onclick="nav(this,'Help')">Help Center</a>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Dashboard Overview</h1>
+        <div class="tabs">
+          <button class="tab active" onclick="tab(this)">Overview</button>
+          <button class="tab" onclick="tab(this)">Issues</button>
+          <button class="tab" onclick="tab(this)">Reports</button>
+        </div>
+      </div>
+      <div class="user-chip"><div class="avatar">SF</div> Sean Florence</div>
+    </div>
+
+    <section class="hero">
+      <div>
+        <div class="hero-badge">✨ <span id="badge">AI Aided Audit Complete</span></div>
+        <h2 id="heroTitle">Your site is performing great!</h2>
+        <p>We've scanned over <strong id="scanned">820+</strong> issues. Score improved by <strong id="improve">4%</strong>. Keep going — every fix makes the web more welcoming.</p>
+      </div>
+      <div class="hero-stats">
+        <div class="stat-pill"><span class="stat-number" id="statIssues">820+</span><span class="stat-label">Issues Scanned</span></div>
+        <div class="stat-pill highlight"><span class="stat-number" id="statScore">87%</span><span class="stat-label">Overall Score</span></div>
+      </div>
+    </section>
+
+    <div class="grid">
+      <!-- Score -->
+      <div class="card">
+        <h3>Estimated WCAG Score</h3>
+        <div class="ring-box">
+          <svg width="140" height="140"><circle class="ring-bg" cx="70" cy="70" r="65"/><circle class="ring-progress" id="ring" cx="70" cy="70" r="65"/></svg>
+          <div class="ring-center"><span class="ring-value" id="scoreValue">0</span><span style="font-size:.85rem;color:#9ba3b5">%</span><span class="ring-label" id="scoreLabel">Great</span></div>
+        </div>
+        <p class="score-note" id="scoreNote">You're in the top 15% of sites we scan. Nice work!</p>
+      </div>
+
+      <!-- Chart -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><h3>Accessibility Trends</h3><p style="font-size:.8rem;color:#6b7280">Issue resolution over time</p></div>
+        </div>
+        <div class="chart-area"><canvas id="chart"></canvas></div>
+        <div class="legend">
+          <span><i class="dot" style="background:#ff6b6b"></i>Critical</span>
+          <span><i class="dot" style="background:#ffb347"></i>Serious</span>
+          <span><i class="dot" style="background:#5b9dff"></i>Moderate</span>
+        </div>
+      </div>
+
+      <!-- Issue Distribution -->
+      <div class="card">
+        <h3>Issue Distribution</h3>
+        <div class="issue-row critical"><div class="issue-icon">⚠</div><div class="issue-info"><div class="issue-name">Critical</div><div class="issue-desc">Need attention soon</div></div><div class="issue-count" id="c1">6</div></div>
+        <div class="issue-row serious"><div class="issue-icon">⚡</div><div class="issue-info"><div class="issue-name">Serious</div><div class="issue-desc">Affect many users</div></div><div class="issue-count" id="c2">18</div></div>
+        <div class="issue-row moderate"><div class="issue-icon">↗</div><div class="issue-info"><div class="issue-name">Moderate</div><div class="issue-desc">Good to improve</div></div><div class="issue-count" id="c3">7</div></div>
+        <div class="issue-row best"><div class="issue-icon">★</div><div class="issue-info"><div class="issue-name">Best Practices</div><div class="issue-desc">Nice-to-have</div></div><div class="issue-count" id="c4">22</div></div>
+      </div>
+
+      <!-- Scan Controls -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div class="status-badge"><span class="pulse"></span> <span id="statusText">Automated · Active</span></div>
+          <span style="font-size:.8rem;color:#6b7280" id="clock">--:--</span>
+        </div>
+        <div class="scan-actions">
+          <button class="btn-primary" id="scanBtn" onclick="startScan()">▶ Start Scan</button>
+          <select class="select"><option>Weekly</option><option>Daily</option><option>Monthly</option></select>
+          <button class="btn-secondary" id="dlBtn" onclick="downloadReport()">⬇ Download Report</button>
+        </div>
+        <div class="comparison">
+          <div style="font-size:.85rem;color:#9ba3b5">Previous vs Current</div>
+          <div class="compare-row">
+            <div class="compare-box"><div class="compare-label">Previous</div><div class="compare-value" id="prev">83%</div></div>
+            <div>→</div>
+            <div class="compare-box current"><div class="compare-label">Current</div><div class="compare-value" id="curr">87%</div></div>
+            <div class="compare-delta" id="delta">+4%</div>
+          </div>
+        </div>
+        <div class="system-status">
+          <div class="status-dot"></div>
+          <div><strong>All systems operational</strong><div style="font-size:.75rem;color:#6b7280">ID: 9SSBSS-RST</div></div>
+        </div>
+      </div>
+
+      <!-- Violations (AccessAudit feature) -->
+      <div class="card violations-card">
+        <h3>Violations Found</h3>
+        <div id="violationsArea">
+          <div class="empty">No audit run yet. Click <strong>Start Scan</strong> to find accessibility issues.</div>
+        </div>
+      </div>
+
+      <!-- Manual Notes (AccessAudit feature) -->
+      <div class="card notes-card">
+        <h3>Manual Testing Notes</h3>
+        <p style="font-size:.85rem;color:#8b949e;margin-bottom:10px">Automated tools miss real user issues. Record keyboard + screen reader findings here.</p>
+        <textarea id="notes" placeholder="Keyboard testing:&#10;- Tab order goes through all interactive elements&#10;- Focus outline is visible&#10;&#10;Screen reader:&#10;- ..."></textarea>
+        <div style="margin-top:12px">
+          <button class="btn-secondary" onclick="saveNotes()">Save Notes</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let score=87, prevScore=83, scanned=820;
+let issues={c1:6,c2:18,c3:7,c4:22};
+let lastViolations=[];
+let chart;
+
+const sampleViolations=[
+  {impact:'critical',title:'Form elements must have labels',description:'A form control does not have an associated label.',selector:'input, select, textarea',remediation:'Add a visible <label> or aria-label that clearly describes the field.'},
+  {impact:'serious',title:'Elements must meet minimum color contrast',description:'Text has insufficient contrast against the background (WCAG 1.4.3).',selector:'.hint, .empty, .issue-desc',remediation:'Increase contrast ratio to at least 4.5:1 for normal text.'},
+  {impact:'critical',title:'Buttons must have discernible text',description:'Button does not have an accessible name.',selector:'button',remediation:'Ensure every button has visible text or an aria-label.'},
+  {impact:'moderate',title:'Heading levels should only increase by one',description:'Heading structure skips a level.',selector:'h1, h2, h3',remediation:'Use sequential heading levels without skipping.'},
+  {impact:'minor',title:'Links must have discernible text',description:'Link text is empty or unclear.',selector:'a',remediation:'Provide clear, descriptive link text.'},
+  {impact:'serious',title:'Images must have alternate text',description:'Image is missing alt attribute.',selector:'img',remediation:'Add meaningful alt text or alt="" for decorative images.'}
+];
+
+// Score ring
+const ring=document.getElementById('ring');
+const circ=2*Math.PI*65;
+ring.style.strokeDasharray=circ;
+function animateScore(t){let c=0;const iv=setInterval(()=>{c+=t/50;if(c>=t){c=t;clearInterval(iv)}document.getElementById('scoreValue').textContent=Math.round(c);ring.style.strokeDashoffset=circ-(c/100)*circ},20)}
+setTimeout(()=>animateScore(87),300);
+
+// Chart
+chart=new Chart(document.getElementById('chart'),{type:'line',data:{labels:['Dec','Jan','Feb','Mar','Apr','May','Jun','Jul'],datasets:[
+  {label:'Critical',data:[42,38,45,36,48,52,55,48],borderColor:'#ff6b6b',backgroundColor:'rgba(255,107,107,.15)',fill:true,tension:.4,pointRadius:0,borderWidth:2.5},
+  {label:'Serious',data:[55,50,58,48,62,68,70,65],borderColor:'#ffb347',backgroundColor:'rgba(255,179,71,.15)',fill:true,tension:.4,pointRadius:0,borderWidth:2.5},
+  {label:'Moderate',data:[30,28,32,25,35,38,42,40],borderColor:'#5b9dff',backgroundColor:'rgba(91,157,255,.1)',fill:true,tension:.4,pointRadius:0,borderWidth:2.5}
+]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#6b7280'}},y:{min:0,max:100,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#6b7280'}}}}});
+
+function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600)}
+
+function startScan(){
+  const btn=document.getElementById('scanBtn');
+  btn.textContent='Scanning...';btn.disabled=true;
+  document.getElementById('statusText').textContent='Scanning...';
+  document.getElementById('badge').textContent='Scan Running...';
+  document.getElementById('scoreNote').textContent='Please wait, checking accessibility...';
+  showToast('Accessibility scan started...');
+
+  setTimeout(()=>{
+    prevScore=score;
+    score=Math.min(98,score+Math.floor(Math.random()*4)+1);
+    scanned+=Math.floor(Math.random()*40)+20;
+    issues.c1=Math.max(0,issues.c1-Math.floor(Math.random()*2));
+    issues.c2=Math.max(0,issues.c2-Math.floor(Math.random()*3));
+    issues.c3=Math.max(0,issues.c3+Math.floor(Math.random()*2)-1);
+    issues.c4+=Math.floor(Math.random()*3);
+
+    // Update numbers
+    document.getElementById('scoreValue').textContent=score;
+    document.getElementById('statScore').textContent=score+'%';
+    document.getElementById('curr').textContent=score+'%';
+    document.getElementById('prev').textContent=prevScore+'%';
+    document.getElementById('delta').textContent='+'+(score-prevScore)+'%';
+    document.getElementById('statIssues').textContent=scanned+'+';
+    document.getElementById('scanned').textContent=scanned+'+';
+    document.getElementById('improve').textContent=(score-prevScore)+'%';
+    document.getElementById('c1').textContent=issues.c1;
+    document.getElementById('c2').textContent=issues.c2;
+    document.getElementById('c3').textContent=issues.c3;
+    document.getElementById('c4').textContent=issues.c4;
+    document.getElementById('heroTitle').textContent='Scan complete — looking better!';
+    document.getElementById('badge').textContent='AI Aided Audit Complete';
+    document.getElementById('statusText').textContent='Automated · Active';
+    document.getElementById('scoreNote').textContent="You're in the top 15% of sites. Nice work!";
+    document.getElementById('scoreLabel').textContent=score>=90?'Excellent':'Great';
+    ring.style.strokeDashoffset=circ-(score/100)*circ;
+
+    // Chart update
+    chart.data.labels.push('Now');
+    chart.data.datasets[0].data.push(Math.max(20,chart.data.datasets[0].data.slice(-1)[0]-5));
+    chart.data.datasets[1].data.push(Math.max(25,chart.data.datasets[1].data.slice(-1)[0]-4));
+    chart.data.datasets[2].data.push(Math.max(15,chart.data.datasets[2].data.slice(-1)[0]-3));
+    chart.update();
+
+    // Show violations
+    const count=3+Math.floor(Math.random()*3);
+    lastViolations=sampleViolations.slice(0,count);
+    renderViolations(lastViolations);
+
+    btn.textContent='▶ Start Scan';btn.disabled=false;
+    showToast('Scan finished! '+lastViolations.length+' issues found · Score: '+score+'%');
+  },2500);
+}
+
+function renderViolations(list){
+  const area=document.getElementById('violationsArea');
+  if(!list.length){area.innerHTML='<div class="empty">No violations found. Great job!</div>';return}
+  area.innerHTML=list.map(v=>`
+    <div class="violation">
+      <div class="v-header">
+        <div class="v-title">${v.title}</div>
+        <span class="badge ${v.impact}">${v.impact}</span>
+      </div>
+      <div class="v-desc">${v.description}</div>
+      <div class="v-meta">Selector: <code>${v.selector}</code></div>
+      <div class="remediation"><strong>Remediation:</strong> ${v.remediation}</div>
+    </div>
+  `).join('');
+}
+
+function downloadReport(){
+  const report={
+    tool:'AccessIQ Accessibility Dashboard',
+    date:new Date().toLocaleString(),
+    wcag:'2.2 A/AA',
+    overallScore:score,
+    previousScore:prevScore,
+    improvement:score-prevScore,
+    totalIssuesScanned:scanned,
+    issueDistribution:{critical:issues.c1,serious:issues.c2,moderate:issues.c3,bestPractices:issues.c4},
+    violations:lastViolations,
+    manualNotes:document.getElementById('notes').value||'No notes recorded',
+    recommendations:['Fix color contrast on text','Add alt text to images','Ensure all form fields have labels','Check keyboard navigation']
+  };
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json'}));
+  a.download=`AccessIQ-Report-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  showToast('Full report downloaded 📄');
+}
+
+function saveNotes(){
+  localStorage.setItem('accessiq-notes',document.getElementById('notes').value);
+  showToast('Notes saved locally');
+}
+const saved=localStorage.getItem('accessiq-notes');
+if(saved)document.getElementById('notes').value=saved;
+
+function nav(el,name){document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));el.classList.add('active');showToast(name+' opened')}
+function tab(el){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');showToast('Tab: '+el.textContent)}
+
+setInterval(()=>{document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'})},1000);
+</script>
+</body>
+</html>
